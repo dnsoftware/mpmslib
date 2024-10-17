@@ -28,8 +28,7 @@ func NewSecureDCS(clusterNodes []string, dcsUsername string, dcsPassword string,
 	// Root certificate CA load
 	caCert, err := os.ReadFile(certs.CA)
 	if err != nil {
-		fmt.Println("Error reading CA certificate:", err)
-		return nil, err
+		return nil, fmt.Errorf("error reading CA certificate: %w", err)
 	}
 
 	// Make certs pool
@@ -39,8 +38,7 @@ func NewSecureDCS(clusterNodes []string, dcsUsername string, dcsPassword string,
 	// Load cert and key
 	cert, err := tls.LoadX509KeyPair(certs.PublicKey, certs.PrivateKey)
 	if err != nil {
-		fmt.Println("Error certificates loading:", err)
-		return nil, err
+		return nil, fmt.Errorf("error certificates loading: %w", err)
 	}
 	// Make tls.Config with a configured root certificate
 	tlsConfig := &tls.Config{
@@ -87,9 +85,10 @@ func (d *DCS) LoadConfig(remoteDataKey string) (string, error) {
 	}
 
 	data := ""
-	for _, ev := range respFrom.Kvs {
-		fmt.Printf("%s : %s\n", ev.Key, ev.Value)
-		data = data + string(ev.Value)
+	if len(respFrom.Kvs) == 1 {
+		data = string(respFrom.Kvs[0].Value)
+	} else {
+		return "", fmt.Errorf("bad range of config response")
 	}
 
 	defer d.client.Close()
