@@ -15,15 +15,16 @@ import (
 
 // DCS (Distributed Configuration System)
 type DCS struct {
-	clusterNodes []string // list of IP addresses and ports of the cluster node (ip:port, ip:port ...)
-	dcsUsername  string   // DCS access user name
-	dcsPassword  string   // DCS access password
-	certs        tlscerts.TLSCerts
-	client       *clientv3.Client
+	clusterNodes  []string // list of IP addresses and ports of the cluster node (ip:port, ip:port ...)
+	dcsUsername   string   // DCS access user name
+	dcsPassword   string   // DCS access password
+	certs         tlscerts.TLSCerts
+	client        *clientv3.Client
+	remoteDataKey string // ключ в etcd по которому лежит конфиг
 }
 
 // NewSecureDCS working with a remote config over a TLS secure connection
-func NewSecureDCS(clusterNodes []string, dcsUsername string, dcsPassword string, certs tlscerts.TLSCerts) (*DCS, error) {
+func NewSecureDCS(clusterNodes []string, dcsUsername string, dcsPassword string, certs tlscerts.TLSCerts, remoteDataKey string) (*DCS, error) {
 
 	// Root certificate CA load
 	caCert, err := os.ReadFile(certs.CA)
@@ -61,10 +62,12 @@ func NewSecureDCS(clusterNodes []string, dcsUsername string, dcsPassword string,
 	}
 
 	dcs := &DCS{
-		clusterNodes: clusterNodes,
-		dcsPassword:  dcsPassword,
-		certs:        certs,
-		client:       cli,
+		clusterNodes:  clusterNodes,
+		dcsUsername:   dcsUsername,
+		dcsPassword:   dcsPassword,
+		certs:         certs,
+		client:        cli,
+		remoteDataKey: remoteDataKey,
 	}
 
 	return dcs, nil
@@ -73,11 +76,11 @@ func NewSecureDCS(clusterNodes []string, dcsUsername string, dcsPassword string,
 // LoadConfig - getting config data by key
 //
 //	remoteDataKey string   // путь к конфигурационным данным в DCS (Distributed Configuration System)
-func (d *DCS) LoadConfig(remoteDataKey string) (string, error) {
+func (d *DCS) LoadConfig() (string, error) {
 	timeout := time.Second * 1
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	respFrom, err := d.client.Get(ctx, remoteDataKey)
+	respFrom, err := d.client.Get(ctx, d.remoteDataKey)
 	cancel()
 
 	if err != nil {
@@ -91,7 +94,38 @@ func (d *DCS) LoadConfig(remoteDataKey string) (string, error) {
 		return "", fmt.Errorf("bad range of config response")
 	}
 
-	defer d.client.Close()
-
 	return data, nil
+}
+
+func (d *DCS) SaveConfig(data string) error {
+	timeout := time.Second * 1
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	respFrom, err := d.client.Put(ctx, d.remoteDataKey, data)
+	_ = respFrom
+	cancel()
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ActivateWatcher наблюдатель за изменениями значения по ключу
+// Передаем канал, куда будет отсылаться конфиг после его изменения на etcd сервере
+func (d *DCS) ActivateWatcher(changedConfig chan string) {
+
+	// Создаем watcher для отслеживания изменений ключа
+	rch := d.client.Watch(context.Background(), d.remoteDataKey) // rch - канал, в который будут приходить обновления
+
+	go func() {
+		for wresp := range rch {
+			for _, ev := range wresp.Events {
+				//fmt.Printf("Тип события: %s, ключ: %s, значение: %s\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
+				changedConfig <- string(ev.Kv.Value)
+			}
+		}
+	}()
+
 }
