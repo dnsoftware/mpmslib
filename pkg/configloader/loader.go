@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/dnsoftware/mpmslib/pkg/dcs"
+	"github.com/dnsoftware/mpmslib/pkg/tlscerts"
 	"github.com/dnsoftware/mpmslib/pkg/utils"
 )
 
@@ -30,7 +31,29 @@ func WithLogger(logger *zap.Logger) Option {
 	}
 }
 
-func NewConfigLoader(dcs *dcs.DCS, localConfigFile string, options ...Option) (*ConfigLoader, error) {
+// NewConfigLoader формирует структуру получения удаленных конфигурационных данных
+// clusterNode список адресов нод кластера etcd с портами: []string{"31.128.39.18:2379", "31.129.98.136:2379", "45.147.179.134:2379"}
+// caPath, publicPath, privatePath - пути к корневому сертификату, к сертификату и приватному ключу
+// remoteDataKey - ключ на удаленном сервере, данные по которому мы хотим получить
+// localConfigPath - путь сохранения полученного удаленного конфига локально
+func NewConfigLoader(
+	remoteDataKey string,
+	clusterNode []string,
+	caPath, publicPath, privatePath string,
+	localConfigPath string,
+	dcsUsername, dcsPassword string,
+	options ...Option) (*ConfigLoader, error) {
+
+	tlsCerts, err := tlscerts.NewTLSCerts(caPath, publicPath, privatePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Вносим пароль для юзера root, указанный в процессе развертывания etcd кластера
+	dcsConf, err := dcs.NewSecureDCS(clusterNode, dcsUsername, dcsPassword, tlsCerts, remoteDataKey)
+	if err != nil {
+		return nil, err
+	}
 
 	logger, err := zap.NewDevelopment()
 	if err != nil {
@@ -38,8 +61,8 @@ func NewConfigLoader(dcs *dcs.DCS, localConfigFile string, options ...Option) (*
 	}
 
 	cfgLoader := &ConfigLoader{
-		dcs:             dcs,
-		localConfigFile: localConfigFile,
+		dcs:             dcsConf,
+		localConfigFile: localConfigPath,
 		logger:          logger,
 	}
 

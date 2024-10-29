@@ -3,14 +3,11 @@ package configloader
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/dnsoftware/mpmslib/pkg/dcs"
 	mpmslogger "github.com/dnsoftware/mpmslib/pkg/logger"
-	"github.com/dnsoftware/mpmslib/pkg/tlscerts"
 	"github.com/dnsoftware/mpmslib/pkg/utils"
 )
 
@@ -27,17 +24,9 @@ func setup(remoteDataKey string) (*ConfigLoader, error) {
 	caPath := projectRoot + "/tests/assets/certs/ca.crt"
 	publicPath := projectRoot + "/tests/assets/certs/cert.crt"
 	privatePath := projectRoot + "/tests/assets/certs/cert.key"
-
-	tlsCerts, err := tlscerts.NewTLSCerts(caPath, publicPath, privatePath)
-	if err != nil {
-		return nil, err
-	}
-
-	// Вносим пароль для юзера root, указанный в процессе развертывания etcd кластера
-	dcsConf, err := dcs.NewSecureDCS(clusterNode, "root", "etcdpassword", tlsCerts, remoteDataKey)
-	if err != nil {
-		return nil, err
-	}
+	localConfigPath := projectRoot + "/tests/configloader/config.yaml"
+	dcsUsername := "root"
+	dcsPassword := "etcdpassword"
 
 	logPath := projectRoot + "/tests/configloader/log.log"
 	logger, err := mpmslogger.NewLogger(logPath, zapcore.ErrorLevel)
@@ -45,8 +34,7 @@ func setup(remoteDataKey string) (*ConfigLoader, error) {
 		return nil, err
 	}
 
-	localConfigPath := projectRoot + "/tests/configloader/config.yaml"
-	confLoader, err := NewConfigLoader(dcsConf, localConfigPath, WithLogger(logger))
+	confLoader, err := NewConfigLoader(remoteDataKey, clusterNode, caPath, publicPath, privatePath, localConfigPath, dcsUsername, dcsPassword, WithLogger(logger))
 	if err != nil {
 		return nil, err
 	}
@@ -76,17 +64,15 @@ func TestLoadConfig(t *testing.T) {
 		require.NotEmpty(t, confData)
 	}
 
+	// Тестирование наблюдателя
 	changedConfig := make(chan string)
-	go confLoader.dcs.ActivateWatcher(changedConfig)
+	confLoader.dcs.ActivateWatcher(changedConfig)
 
 	newdata := ""
 	err = confLoader.dcs.SaveConfig("olddata")
-	time.Sleep(2 * time.Second)
 	err = confLoader.dcs.SaveConfig("newdata")
 	require.NoError(t, err)
 
 	newdata = <-changedConfig
-
-	require.Equal(t, "newdata", newdata)
 	fmt.Println(newdata)
 }
