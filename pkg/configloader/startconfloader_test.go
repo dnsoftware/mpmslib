@@ -1,7 +1,6 @@
 package configloader
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -17,5 +16,5 @@ func TestLoadStartConfig(t *testing.T) {
 	startConf, err := LoadStartConfig(fullPath)
 	require.NoError(t, err)
 
-	fmt.Println(startConf)
+	_ = startConf
 }
