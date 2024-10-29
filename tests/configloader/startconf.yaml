@@ -1,0 +1,9 @@
+etcd:
+  endpoints: "31.128.39.18:2379,31.129.98.136:2379,45.147.179.134:2379"
+  auth:
+    username: "root"
+    password: "etcdpassword"
+  tls:
+    ca_file: certs/ca.crt
+    cert_file: certs/cert.crt
+    key_file: certs/cert.key
