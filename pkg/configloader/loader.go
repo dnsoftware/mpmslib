@@ -16,7 +16,7 @@ import (
 	"github.com/dnsoftware/mpmslib/pkg/utils"
 )
 
-// ConfigLoader получение конфигурационных данных
+// ConfigLoader получение конфигурационных данных с удаленного сервера etcd
 type ConfigLoader struct {
 	dcs             *dcs.DCS // удаленный конфиг
 	localConfigFile string   // путь к локальному конфиг файлу
