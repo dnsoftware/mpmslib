@@ -26,7 +26,8 @@ type Etcd struct {
 
 // StartConfig Стартовый конфиг
 type StartConfig struct {
-	Etcd Etcd `yaml:"etcd"`
+	AppID string `yaml:"appID"`
+	Etcd  Etcd   `yaml:"etcd"`
 }
 
 // LoadStartConfig загрузка стартового конфига для получения доступа к кластеру etcd, где хранится основная конфигурация
