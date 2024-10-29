@@ -24,6 +24,7 @@ type Etcd struct {
 	Tls       Tls    `yaml:"tls"`
 }
 
+// StartConfig Стартовый конфиг
 type StartConfig struct {
 	Etcd Etcd `yaml:"etcd"`
 }
