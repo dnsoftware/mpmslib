@@ -5,9 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zapcore"
 
-	mpmslogger "github.com/dnsoftware/mpmslib/pkg/logger"
 	"github.com/dnsoftware/mpmslib/pkg/utils"
 )
 
@@ -28,13 +26,7 @@ func setup(remoteDataKey string) (*ConfigLoader, error) {
 	dcsUsername := "root"
 	dcsPassword := "etcdpassword"
 
-	logPath := projectRoot + "/tests/configloader/log.log"
-	logger, err := mpmslogger.NewLogger(logPath, zapcore.ErrorLevel)
-	if err != nil {
-		return nil, err
-	}
-
-	confLoader, err := NewConfigLoader(remoteDataKey, clusterNode, caPath, publicPath, privatePath, localConfigPath, dcsUsername, dcsPassword, WithLogger(logger))
+	confLoader, err := NewConfigLoader(remoteDataKey, clusterNode, caPath, publicPath, privatePath, localConfigPath, dcsUsername, dcsPassword)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +49,7 @@ func TestLoadConfig(t *testing.T) {
 
 	// Если не удалось загрузить удаленный конфиг - логируем этот факт и загружаем из локального файла
 	if err != nil {
-		confLoader.logger.Error("Remote config does not load: " + err.Error())
+		fmt.Println("Remote config does not load: " + err.Error())
 
 		confData, err = confLoader.LoadLocalConfig()
 		require.NoError(t, err)
