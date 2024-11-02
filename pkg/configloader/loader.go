@@ -28,7 +28,6 @@ type Option func(loader *ConfigLoader)
 // remoteDataKey - ключ на удаленном сервере, данные по которому мы хотим получить
 // localConfigPath - путь сохранения полученного удаленного конфига локально
 func NewConfigLoader(
-	remoteDataKey string,
 	clusterNode []string,
 	caPath, publicPath, privatePath string,
 	localConfigPath string,
@@ -40,7 +39,7 @@ func NewConfigLoader(
 	}
 
 	// Вносим пароль для юзера root, указанный в процессе развертывания etcd кластера
-	dcsConf, err := dcs.NewSecureDCS(clusterNode, dcsUsername, dcsPassword, tlsCerts, remoteDataKey)
+	dcsConf, err := dcs.NewSecureDCS(clusterNode, dcsUsername, dcsPassword, tlsCerts)
 	if err != nil {
 		return nil, err
 	}
@@ -53,9 +52,9 @@ func NewConfigLoader(
 	return cfgLoader, nil
 }
 
-func (c *ConfigLoader) LoadRemoteConfig() (string, error) {
+func (c *ConfigLoader) LoadRemoteConfig(remoteDataKey string) (string, error) {
 
-	cfgData, err := c.dcs.LoadConfig()
+	cfgData, err := c.dcs.LoadConfig(remoteDataKey)
 	if err != nil {
 		return "", fmt.Errorf("LoadRemoteConfig: %w", err)
 	}
@@ -67,12 +66,16 @@ func (c *ConfigLoader) LoadRemoteConfig() (string, error) {
 		}
 	}
 
-	err = utils.SaveTextToFile(c.localConfigFile, cfgData)
+	return cfgData, nil
+}
+
+func (c *ConfigLoader) SaveConfigToFile(cfgData string) error {
+	err := utils.SaveTextToFile(c.localConfigFile, cfgData)
 	if err != nil {
-		return "", fmt.Errorf("SaveTextToFile: %w", err)
+		return fmt.Errorf("SaveConfigToFile error: %w", err)
 	}
 
-	return cfgData, nil
+	return nil
 }
 
 func (c *ConfigLoader) LoadLocalConfig() (string, error) {
