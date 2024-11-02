@@ -67,3 +67,24 @@ func TestLoadConfig(t *testing.T) {
 	newdata = <-changedConfig
 	fmt.Println(newdata)
 }
+
+func TestSaveConfig(t *testing.T) {
+	remoteDataKey := "/testnamespace/config.yaml"
+	confLoader, err := setup()
+	require.NoError(t, err)
+
+	err = confLoader.dcs.SaveConfig(remoteDataKey, "newdata2")
+	confData, err := confLoader.LoadRemoteConfig(remoteDataKey)
+	require.NoError(t, err)
+
+	require.Equal(t, "newdata2", confData)
+
+	err = confLoader.SaveConfigToFile(confData)
+	require.NoError(t, err)
+
+	err = confLoader.dcs.SaveConfig(remoteDataKey+"_1", "newdata3")
+	require.NoError(t, err)
+	res, err := confLoader.MultiloadRemoteConfig([]string{remoteDataKey + "_1", remoteDataKey})
+	require.Equal(t, "newdata3\nnewdata2", res)
+
+}

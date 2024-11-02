@@ -8,6 +8,7 @@ package configloader
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/dnsoftware/mpmslib/pkg/dcs"
 	"github.com/dnsoftware/mpmslib/pkg/tlscerts"
@@ -52,6 +53,7 @@ func NewConfigLoader(
 	return cfgLoader, nil
 }
 
+// LoadRemoteConfig Загрузка удаленного конфига по ключу
 func (c *ConfigLoader) LoadRemoteConfig(remoteDataKey string) (string, error) {
 
 	cfgData, err := c.dcs.LoadConfig(remoteDataKey)
@@ -59,17 +61,32 @@ func (c *ConfigLoader) LoadRemoteConfig(remoteDataKey string) (string, error) {
 		return "", fmt.Errorf("LoadRemoteConfig: %w", err)
 	}
 
-	if !utils.FileExists(c.localConfigFile) {
-		err = utils.CreateFileWithDirs(c.localConfigFile)
-		if err != nil {
-			return "", fmt.Errorf("CreateFileWithDirs: %w", err)
-		}
-	}
-
 	return cfgData, nil
 }
 
+// MultiloadRemoteConfig загрузка данных по нескольким ключам и объединение в одну строку в порядке следования элементов в массиве ключей
+func (c *ConfigLoader) MultiloadRemoteConfig(remoteDataKeys []string) (string, error) {
+	var data []string
+	for _, val := range remoteDataKeys {
+		cfgData, err := c.dcs.LoadConfig(val)
+		if err != nil {
+			return "", fmt.Errorf("MultiloadRemoteConfig error load, key: %s", val)
+		}
+		data = append(data, cfgData)
+	}
+
+	return strings.Join(data, "\n"), nil
+}
+
 func (c *ConfigLoader) SaveConfigToFile(cfgData string) error {
+
+	if !utils.FileExists(c.localConfigFile) {
+		err := utils.CreateFileWithDirs(c.localConfigFile)
+		if err != nil {
+			return fmt.Errorf("CreateFileWithDirs: %w", err)
+		}
+	}
+
 	err := utils.SaveTextToFile(c.localConfigFile, cfgData)
 	if err != nil {
 		return fmt.Errorf("SaveConfigToFile error: %w", err)
