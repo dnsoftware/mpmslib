@@ -1,3 +1,13 @@
 /coverage.out
 /.idea/
 /tests/configloader/log.log
+.env
+**/test.log
+app.log
+config.yaml
+/certs/*.crt
+/certs/*.key
+/certs/*.csr
+/certs/*.srl
+/_config.yaml
+/startconf.yaml
